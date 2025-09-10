@@ -37,15 +37,20 @@ class JeffUI:
         """Sürekli sesli komut dinler"""
         while True:
             command = voice.listen_command()
-            if command:
-                if "yazma" in command:
-                    self.root.after(0, self.show_writing)
-                elif "yönetim" in command:
-                    self.root.after(0, self.show_management)
-                elif "gözlem" in command:
-                    self.root.after(0, self.show_observe)
-                elif "ana sayfa" in command:
-                    self.root.after(0, self.show_home)
+            if not command:
+                continue  # boş ise geç
+            if "jeff" not in command:
+                continue  # wake word yoksa geç
+
+            if "yazma" in command:
+                self.root.after(0, self.show_writing)
+            elif "yönetim" in command:
+                self.root.after(0, self.show_management)
+            elif "gözlem" in command:
+                self.root.after(0, self.show_observe)
+            elif "ana sayfa" in command:
+                self.root.after(0, self.show_home)
+
 
     def close_to_tray(self):
         """UI'yi gizle (ama program kapanmaz)"""
@@ -60,6 +65,7 @@ class JeffUI:
                 if woke:
                     print("👉 Wake word algılandı: Jeff geri açılıyor")
                     self.root.after(0, self.root.deiconify)
+                    
     def toggle_sidebar(self):
         if self.sidebar_expanded:
             self.sidebar.pack_forget()
