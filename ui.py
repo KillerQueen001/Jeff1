@@ -13,7 +13,7 @@ class JeffUI:
         self.root.title("Jeff1 Asistan")
         self.root.geometry("950x600")
 
-        # Başlangıçta sidebar oluştur
+        # Sidebar
         self.sidebar_expanded = True
         self.sidebar = tk.Frame(root, width=200, bg="#222")
         self.sidebar.pack(side="left", fill="y")
@@ -21,12 +21,31 @@ class JeffUI:
         self.main_area = tk.Frame(root, bg="#333")
         self.main_area.pack(side="right", expand=True, fill="both")
 
+        # Mikrofon etiketi (sağ üstte)
+        self.mic_label = tk.Label(root, text=f"🎙️ {voice.get_current_mic_name()}",
+                                  bg="#111", fg="white", font=("Arial", 10))
+        self.mic_label.place(relx=1.0, x=-10, y=10, anchor="ne")
+
         self.create_sidebar_buttons()
         self.show_home()
 
-        # Wake word thread'ini başlat
-        self.wake_thread = threading.Thread(target=self.wake_listener, daemon=True)
-        self.wake_thread.start()
+        # Sürekli dinleme thread'i
+        self.listen_thread = threading.Thread(target=self.continuous_listener, daemon=True)
+        self.listen_thread.start()
+
+    def continuous_listener(self):
+        """Sürekli sesli komut dinler"""
+        while True:
+            command = voice.listen_command()
+            if command:
+                if "yazma" in command:
+                    self.root.after(0, self.show_writing)
+                elif "yönetim" in command:
+                    self.root.after(0, self.show_management)
+                elif "gözlem" in command:
+                    self.root.after(0, self.show_observe)
+                elif "ana sayfa" in command:
+                    self.root.after(0, self.show_home)
 
     def close_to_tray(self):
         """UI'yi gizle (ama program kapanmaz)"""
@@ -92,7 +111,6 @@ class JeffUI:
             messagebox.showinfo("Jeff1", f"Komut anlaşılamadı: {command}")
 
     def select_microphone(self):
-        """UI üzerinden mikrofon seçme ekranı"""
         win = tk.Toplevel(self.root)
         win.title("Mikrofon Seçimi")
 
@@ -106,11 +124,12 @@ class JeffUI:
             if combo.current() >= 0:
                 mic_id = list(mics.keys())[combo.current()]
                 voice.set_microphone(mic_id)
-                self.selected_mic = mic_id
+                self.mic_label.config(text=f"🎙️ {mics[mic_id]}")  # ✅ ekranda güncelle
                 messagebox.showinfo("Jeff1", f"Mikrofon seçildi: {mics[mic_id]}")
                 win.destroy()
 
         ttk.Button(win, text="Seç", command=set_mic).pack(pady=10)
+
 
     def clear_main(self):
         for widget in self.main_area.winfo_children():
