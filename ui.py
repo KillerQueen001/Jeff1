@@ -5,13 +5,15 @@ import voice
 import threading
 import time
 
+
+
 class JeffUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Jeff1 Asistan")
         self.root.geometry("950x600")
 
-        # Sidebar (hamburger menü)
+        # Başlangıçta sidebar oluştur
         self.sidebar_expanded = True
         self.sidebar = tk.Frame(root, width=200, bg="#222")
         self.sidebar.pack(side="left", fill="y")
@@ -22,10 +24,23 @@ class JeffUI:
         self.create_sidebar_buttons()
         self.show_home()
 
-        # Wake word thread'i başlat
+        # Wake word thread'ini başlat
         self.wake_thread = threading.Thread(target=self.wake_listener, daemon=True)
         self.wake_thread.start()
 
+    def close_to_tray(self):
+        """UI'yi gizle (ama program kapanmaz)"""
+        self.root.withdraw()
+
+    def wake_listener(self):
+        """Arka planda sürekli 'jeff uyan' bekler"""
+        while True:
+            time.sleep(1)
+            if not self.root.winfo_viewable():  # pencere gizlenmiş
+                woke = voice.listen_for_wake_word()
+                if woke:
+                    print("👉 Wake word algılandı: Jeff geri açılıyor")
+                    self.root.after(0, self.root.deiconify)
     def toggle_sidebar(self):
         if self.sidebar_expanded:
             self.sidebar.pack_forget()
@@ -54,14 +69,14 @@ class JeffUI:
             ("👀 Gözlem", self.show_observe),
             ("🎤 Sesli Komut", self.handle_voice),
             ("🎙️ Mikrofon Seç", self.select_microphone),
-            ("🚪 Gizle", self.close_to_tray)
+            ("🚪 Gizle", self.close_to_tray)  # ❌ yerine gizle butonu
         ]
+
 
         for text, cmd in buttons:
             btn = tk.Button(self.sidebar, text=text if self.sidebar_expanded else text[0],
                             command=cmd, bg="#444", fg="white", relief="flat", padx=10, pady=10)
             btn.pack(fill="x", pady=2)
-
     def handle_voice(self):
         command = voice.listen_command()
 
@@ -91,25 +106,11 @@ class JeffUI:
             if combo.current() >= 0:
                 mic_id = list(mics.keys())[combo.current()]
                 voice.set_microphone(mic_id)
+                self.selected_mic = mic_id
                 messagebox.showinfo("Jeff1", f"Mikrofon seçildi: {mics[mic_id]}")
                 win.destroy()
 
         ttk.Button(win, text="Seç", command=set_mic).pack(pady=10)
-
-    def close_to_tray(self):
-        """UI'yi gizle (ama program kapanmaz)"""
-        self.root.withdraw()
-        print("👉 Jeff gizlendi. 'Jeff uyan' komutunu bekliyor...")
-
-    def wake_listener(self):
-        """Arka planda sürekli 'jeff uyan' bekler"""
-        while True:
-            time.sleep(1)
-            if not self.root.winfo_viewable():  # pencere gizliyse
-                woke = voice.listen_for_wake_word()
-                if woke:
-                    print("👉 Wake word algılandı: Jeff geri açılıyor")
-                    self.root.after(0, self.root.deiconify)
 
     def clear_main(self):
         for widget in self.main_area.winfo_children():
@@ -144,8 +145,51 @@ class JeffUI:
         notebook = ttk.Notebook(self.main_area)
         notebook.pack(expand=True, fill="both", padx=20, pady=10)
 
-        # Sekmeler (oluştur, sil, adlandır, taşı, kopyala) — aynı senin önceki kodların
-        # Burayı tekrar yazmadım çünkü mantık değişmedi.
+        # --- Oluştur ---
+        create_tab = tk.Frame(notebook, bg="#333")
+        notebook.add(create_tab, text="📄 Oluştur")
+        path_entry_c = tk.Entry(create_tab, width=60)
+        path_entry_c.pack(pady=10)
+        ttk.Button(create_tab, text="Dosya Oluştur",
+                   command=lambda: self.handle_action(lambda: management_mode.create_file(path_entry_c.get()))).pack(pady=5)
+
+        # --- Sil ---
+        delete_tab = tk.Frame(notebook, bg="#333")
+        notebook.add(delete_tab, text="🗑️ Sil")
+        path_entry_d = tk.Entry(delete_tab, width=60)
+        path_entry_d.pack(pady=10)
+        ttk.Button(delete_tab, text="Dosya Sil",
+                   command=lambda: self.handle_action(lambda: management_mode.delete_file(path_entry_d.get()))).pack(pady=5)
+
+        # --- Yeniden Adlandır ---
+        rename_tab = tk.Frame(notebook, bg="#333")
+        notebook.add(rename_tab, text="✏️ Adlandır")
+        old_entry = tk.Entry(rename_tab, width=60)
+        old_entry.pack(pady=5)
+        new_entry = tk.Entry(rename_tab, width=60)
+        new_entry.pack(pady=5)
+        ttk.Button(rename_tab, text="Yeniden Adlandır",
+                   command=lambda: self.handle_action(lambda: management_mode.rename_file(old_entry.get(), new_entry.get()))).pack(pady=5)
+
+        # --- Taşı ---
+        move_tab = tk.Frame(notebook, bg="#333")
+        notebook.add(move_tab, text="📂 Taşı")
+        src_entry_m = tk.Entry(move_tab, width=60)
+        src_entry_m.pack(pady=5)
+        dst_entry_m = tk.Entry(move_tab, width=60)
+        dst_entry_m.pack(pady=5)
+        ttk.Button(move_tab, text="Dosya Taşı",
+                   command=lambda: self.handle_action(lambda: management_mode.move_file(src_entry_m.get(), dst_entry_m.get()))).pack(pady=5)
+
+        # --- Kopyala ---
+        copy_tab = tk.Frame(notebook, bg="#333")
+        notebook.add(copy_tab, text="📑 Kopyala")
+        src_entry_cp = tk.Entry(copy_tab, width=60)
+        src_entry_cp.pack(pady=5)
+        dst_entry_cp = tk.Entry(copy_tab, width=60)
+        dst_entry_cp.pack(pady=5)
+        ttk.Button(copy_tab, text="Dosya Kopyala",
+                   command=lambda: self.handle_action(lambda: management_mode.copy_file(src_entry_cp.get(), dst_entry_cp.get()))).pack(pady=5)
 
     def show_observe(self):
         self.clear_main()
@@ -178,7 +222,15 @@ class JeffUI:
         ttk.Button(frame, text="Tüm Loglar", command=show_all).pack(side="left", padx=5)
         ttk.Button(frame, text="Filtrele", command=show_recent).pack(side="left", padx=5)
 
+        # Başlangıçta tüm loglar
         show_all()
+
+    def handle_action(self, action_func):
+        try:
+            msg = action_func()
+            messagebox.showinfo("Başarılı", msg)
+        except Exception as e:
+            messagebox.showerror("Hata", str(e))
 
 if __name__ == "__main__":
     root = tk.Tk()
